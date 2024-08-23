@@ -1,0 +1,151 @@
+import os
+import pandas as pd
+import streamlit as st
+from datetime import datetime
+import win32com.client
+
+# Função para a Página 1: Filtrando Horas Extras
+def pagina_filtragem_horas_extras():
+    st.title("Filtrando Horas Extras")
+
+    uploaded_file = st.file_uploader("Escolha o arquivo a ser transformado", type=["csv", "xlsx", "txt"])
+
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            elif uploaded_file.name.endswith(".xlsx"):
+                df = pd.read_excel(uploaded_file)
+            elif uploaded_file.name.endswith(".txt"):
+                df = pd.read_csv(uploaded_file, sep='\t')
+            
+            # Filtra as colunas desejadas
+            filtro = df[["Colaborador", "Função", "Data", "Horas Extr.", "CPF"]]
+            
+            # Filtros adicionais
+            filtro2 = filtro[(filtro["Horas Extr."] > "02:00") & (filtro["Horas Extr."] < "02:59")]
+            filtro3 = filtro[(filtro["Horas Extr."] > "03:00") & (filtro["Horas Extr."] < "03:59")]
+            filtro4 = filtro[filtro["Horas Extr."] > "04:00"]
+
+            # Exibe a tabela filtrada padrão
+            st.dataframe(filtro, use_container_width=True)
+            
+            # Escolha do filtro para exportação
+            opcao_exportacao = st.radio(
+                "Escolha qual filtro deseja exportar:",
+                ("Filtro padrão", "Filtro 2: Horas entre 02:00 e 02:59", "Filtro 3: Horas entre 03:00 e 03:59", "Filtro 4: Horas acima de 04:00")
+            )
+            
+            # Define o DataFrame a ser exportado
+            if opcao_exportacao == "Filtro padrão":
+                df_export = filtro
+                nome_arquivo_base = "Tabela_Filtrada"
+            elif opcao_exportacao == "Filtro 2: Horas entre 02:00 e 02:59":
+                df_export = filtro2
+                nome_arquivo_base = "Tabela_Filtrada_2"
+            elif opcao_exportacao == "Filtro 3: Horas entre 03:00 e 03:59":
+                df_export = filtro3
+                nome_arquivo_base = "Tabela_Filtrada_3"
+            else:
+                df_export = filtro4
+                nome_arquivo_base = "Tabela_Filtrada_4"
+
+            # Converte o DataFrame selecionado para CSV
+            csv = df_export.to_csv(index=False, sep=",", encoding="UTF-8")
+            
+            # Define o nome do arquivo com a data atual
+            data_atual = datetime.now().strftime("%d-%m-%Y")
+            nome_arquivo = f"{nome_arquivo_base}_{data_atual}.csv"
+            
+            # Botão de download
+            st.download_button(
+                label="Baixar o Arquivo Filtrado",
+                data=csv,
+                file_name=nome_arquivo,
+                mime='text/csv'
+            )
+        except Exception as e:
+            st.error(f"Erro ao processar o arquivo: {e}")
+    else:
+        st.warning("Por favor, carregue um arquivo para visualizar os dados.")
+
+# Função para combinar arquivos CSV
+def combinar_csv(uploaded_files, nome_arquivo):
+    # Cria uma lista para armazenar os DataFrames
+    df_list = []
+
+    # Lê cada arquivo CSV e adiciona à lista de DataFrames
+    for uploaded_file in uploaded_files:
+        try:
+            df = pd.read_csv(uploaded_file)
+            df_list.append(df)
+        except Exception as e:
+            st.error(f"Erro ao ler o arquivo {uploaded_file.name}: {e}")
+
+    # Concatena todos os DataFrames em um único DataFrame
+    if df_list:
+        combined_df = pd.concat(df_list, ignore_index=True)
+        # Converte o DataFrame combinado para CSV
+        csv_combined = combined_df.to_csv(index=False, sep=",", encoding="UTF-8")
+        return csv_combined
+    else:
+        st.warning("Nenhum arquivo CSV válido foi processado.")
+        return None
+
+# Função para baixar anexos CSV do Outlook
+def baixar_anexos_csv_outlook(pasta_destino):
+    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+    inbox = outlook.GetDefaultFolder(6)  # 6 é o índice da pasta "Caixa de Entrada"
+    messages = inbox.Items
+    csv_files = []
+    for message in messages:
+        if message.Attachments.Count > 0:
+            for attachment in message.Attachments:
+                if attachment.FileName.endswith('.csv'):
+                    file_path = os.path.join(pasta_destino, attachment.FileName)
+                    attachment.SaveAsFile(file_path)
+                    csv_files.append(file_path)
+    return csv_files
+
+# Interface do Streamlit
+def main():
+    st.sidebar.title("Navegação")
+    pagina = st.sidebar.radio("Escolha a página:", ["Filtrando Horas Extras", "Juntar Arquivos CSV", "Baixar Arquivos do Outlook"])
+
+    if pagina == "Filtrando Horas Extras":
+        pagina_filtragem_horas_extras()
+    elif pagina == "Juntar Arquivos CSV":
+        st.title("Juntar Arquivos CSV")
+
+        uploaded_files = st.file_uploader("Escolha os arquivos CSV para combinar", type=["csv"], accept_multiple_files=True)
+
+        # Entrada para o nome do arquivo a ser salvo
+        nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv')
+
+        if st.button("Combinar Arquivos") and uploaded_files:
+            csv_combined = combinar_csv(uploaded_files, nome_arquivo)
+            if csv_combined:
+                # Botão de download para o arquivo combinado
+                st.download_button(
+                    label="Baixar Arquivo Combinado",
+                    data=csv_combined,
+                    file_name=nome_arquivo,
+                    mime='text/csv'
+                )
+    elif pagina == "Baixar Arquivos do Outlook":
+        st.title("Baixar Arquivos do Outlook")
+
+        pasta_destino = st.text_input("Escolha a pasta de destino para salvar os anexos", r"C:\Users\rene.bueno\Desktop\maria\nova_pasta")
+
+        if st.button("Baixar Anexos CSV"):
+            if pasta_destino:
+                csv_files = baixar_anexos_csv_outlook(pasta_destino)
+                if csv_files:
+                    st.success(f"Anexos CSV baixados para: {pasta_destino}")
+                else:
+                    st.warning("Nenhum anexo CSV encontrado.")
+            else:
+                st.error("Por favor, insira um caminho válido para a pasta de destino.")
+
+if __name__ == "__main__":
+    main()
