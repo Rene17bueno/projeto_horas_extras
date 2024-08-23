@@ -2,7 +2,10 @@ import os
 import pandas as pd
 import streamlit as st
 from datetime import datetime
-import win32com.client
+import platform
+
+if platform.system() == "Windows":
+    import win32com.client
 
 # Função para a Página 1: Filtrando Horas Extras
 def pagina_filtragem_horas_extras():
