@@ -4,9 +4,6 @@ import streamlit as st
 from datetime import datetime
 import platform
 
-if platform.system() == "Windows":
-    import win32com.client
-
 # Função para a Página 1: Filtrando Horas Extras
 def pagina_filtragem_horas_extras():
     st.title("Filtrando Horas Extras")
@@ -74,10 +71,7 @@ def pagina_filtragem_horas_extras():
 
 # Função para combinar arquivos CSV
 def combinar_csv(uploaded_files, nome_arquivo):
-    # Cria uma lista para armazenar os DataFrames
     df_list = []
-
-    # Lê cada arquivo CSV e adiciona à lista de DataFrames
     for uploaded_file in uploaded_files:
         try:
             df = pd.read_csv(uploaded_file)
@@ -85,30 +79,33 @@ def combinar_csv(uploaded_files, nome_arquivo):
         except Exception as e:
             st.error(f"Erro ao ler o arquivo {uploaded_file.name}: {e}")
 
-    # Concatena todos os DataFrames em um único DataFrame
     if df_list:
         combined_df = pd.concat(df_list, ignore_index=True)
-        # Converte o DataFrame combinado para CSV
         csv_combined = combined_df.to_csv(index=False, sep=",", encoding="UTF-8")
         return csv_combined
     else:
         st.warning("Nenhum arquivo CSV válido foi processado.")
         return None
 
-# Função para baixar anexos CSV do Outlook
+# Função para baixar anexos CSV do Outlook (Somente para Windows)
 def baixar_anexos_csv_outlook(pasta_destino):
-    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-    inbox = outlook.GetDefaultFolder(6)  # 6 é o índice da pasta "Caixa de Entrada"
-    messages = inbox.Items
-    csv_files = []
-    for message in messages:
-        if message.Attachments.Count > 0:
-            for attachment in message.Attachments:
-                if attachment.FileName.endswith('.csv'):
-                    file_path = os.path.join(pasta_destino, attachment.FileName)
-                    attachment.SaveAsFile(file_path)
-                    csv_files.append(file_path)
-    return csv_files
+    if platform.system() == "Windows":
+        import win32com.client
+        outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+        inbox = outlook.GetDefaultFolder(6)
+        messages = inbox.Items
+        csv_files = []
+        for message in messages:
+            if message.Attachments.Count > 0:
+                for attachment in message.Attachments:
+                    if attachment.FileName.endswith('.csv'):
+                        file_path = os.path.join(pasta_destino, attachment.FileName)
+                        attachment.SaveAsFile(file_path)
+                        csv_files.append(file_path)
+        return csv_files
+    else:
+        st.error("Este recurso está disponível apenas para Windows.")
+        return []
 
 # Interface do Streamlit
 def main():
@@ -121,14 +118,11 @@ def main():
         st.title("Juntar Arquivos CSV")
 
         uploaded_files = st.file_uploader("Escolha os arquivos CSV para combinar", type=["csv"], accept_multiple_files=True)
-
-        # Entrada para o nome do arquivo a ser salvo
         nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv')
 
         if st.button("Combinar Arquivos") and uploaded_files:
             csv_combined = combinar_csv(uploaded_files, nome_arquivo)
             if csv_combined:
-                # Botão de download para o arquivo combinado
                 st.download_button(
                     label="Baixar Arquivo Combinado",
                     data=csv_combined,
@@ -138,7 +132,8 @@ def main():
     elif pagina == "Baixar Arquivos do Outlook":
         st.title("Baixar Arquivos do Outlook")
 
-        pasta_destino = st.text_input("Escolha a pasta de destino para salvar os anexos", r"C:\Users\rene.bueno\Desktop\maria\nova_pasta")
+        pasta_destino = st.text_input("Escolha a pasta de destino para salvar os anexos", "")
+        pasta_destino = os.path.expanduser(pasta_destino)  # Expand user paths like "~"
 
         if st.button("Baixar Anexos CSV"):
             if pasta_destino:
@@ -152,3 +147,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
