@@ -119,7 +119,7 @@ def main():
         st.title("Juntar Arquivos CSV")
 
         uploaded_files = st.file_uploader("Escolha os arquivos CSV para combinar", type=["csv"], accept_multiple_files=True)
-        nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv', sep=",")
+        nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv')
 
         if st.button("Combinar Arquivos") and uploaded_files:
             csv_combined = combinar_csv(uploaded_files, nome_arquivo)
