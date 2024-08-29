@@ -9,7 +9,6 @@ import pandas as pd
 import streamlit as st
 from datetime import datetime
 import platform
-from exchangelib import Credentials, Account, DELEGATE, FileAttachment
 
 # Função para a Página 1: Filtrando Horas Extras
 def pagina_filtragem_horas_extras():
@@ -97,24 +96,20 @@ def combinar_csv(uploaded_files, nome_arquivo):
         st.warning("Nenhum arquivo CSV válido foi processado.")
         return None
 
-# Função para baixar anexos CSV do Outlook (Multiplataforma)
+# Função para baixar anexos CSV do Outlook (Somente para Windows)
 def baixar_anexos_csv_outlook(pasta_destino):
-    try:
-        credentials = Credentials('seu_email@dominio.com', 'sua_senha')
-        account = Account('seu_email@dominio.com', credentials=credentials, autodiscover=True, access_type=DELEGATE)
-        
+    if platform.system() == "Windows":
+        import win32com.client
+        outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+        inbox = outlook.GetDefaultFolder(6)
+        messages = inbox.Items
         csv_files = []
-        for item in account.inbox.filter(is_read=False):
-            for attachment in item.attachments:
-                if isinstance(attachment, FileAttachment) and attachment.name.endswith('.csv'):
-                    local_path = os.path.join(pasta_destino, attachment.name)
-                    with open(local_path, 'wb') as f:
-                        f.write(attachment.content)
-                    csv_files.append(local_path)
+        for message in messages:
+            # Implementação fictícia para fins de exemplo
+            pass
         return csv_files
-    except Exception as e:
-        st.error(f"Erro ao baixar anexos: {e}")
-        return []
+    else:
+        st.error("Este recurso está disponível apenas para Windows.")
 
 # Função principal
 def main():
