@@ -1,9 +1,15 @@
+try:
+    from exchangelib import Credentials, Account, DELEGATE
+    print("exchangelib importado com sucesso!")
+except ImportError as e:
+    print(f"Erro ao importar exchangelib: {e}")
+
 import os
 import pandas as pd
 import streamlit as st
 from datetime import datetime
 import platform
-from exchangelib import Credentials, Account, DELEGATE
+from exchangelib import Credentials, Account, DELEGATE, FileAttachment
 
 # Função para a Página 1: Filtrando Horas Extras
 def pagina_filtragem_horas_extras():
