@@ -19,13 +19,16 @@ def pagina_filtragem_horas_extras():
             elif uploaded_file.name.endswith(".txt"):
                 df = pd.read_csv(uploaded_file, sep='\t')
             
+            # Converte a coluna de horas extras para datetime
+            df["Horas Extr."] = pd.to_datetime(df["Horas Extr."], format='%H:%M').dt.time
+            
             # Filtra as colunas desejadas
             filtro = df[["Colaborador", "Função", "Data", "Horas Extr.", "CPF"]]
             
             # Filtros adicionais
-            filtro2 = filtro[(filtro["Horas Extr."] > "02:00") & (filtro["Horas Extr."] < "02:59")]
-            filtro3 = filtro[(filtro["Horas Extr."] > "03:00") & (filtro["Horas Extr."] < "03:59")]
-            filtro4 = filtro[filtro["Horas Extr."] > "04:00"]
+            filtro2 = filtro[(filtro["Horas Extr."] > datetime.strptime("02:00", "%H:%M").time()) & (filtro["Horas Extr."] < datetime.strptime("02:59", "%H:%M").time())]
+            filtro3 = filtro[(filtro["Horas Extr."] > datetime.strptime("03:00", "%H:%M").time()) & (filtro["Horas Extr."] < datetime.strptime("03:59", "%H:%M").time())]
+            filtro4 = filtro[filtro["Horas Extr."] > datetime.strptime("04:00", "%H:%M").time()]
 
             # Exibe a tabela filtrada padrão
             st.dataframe(filtro, use_container_width=True)
@@ -98,16 +101,14 @@ def baixar_anexos_csv_outlook(pasta_destino):
         for message in messages:
             if message.Attachments.Count > 0:
                 for attachment in message.Attachments:
-                    if attachment.FileName.endswith('.csv'):
-                        file_path = os.path.join(pasta_destino, attachment.FileName)
-                        attachment.SaveAsFile(file_path)
-                        csv_files.append(file_path)
+                    if attachment.FileName.endswith(".csv"):
+                        attachment.SaveAsFile(os.path.join(pasta_destino, attachment.FileName))
+                        csv_files.append(attachment.FileName)
         return csv_files
     else:
         st.error("Este recurso está disponível apenas para Windows.")
-        return []
 
-# Interface do Streamlit
+# Função principal
 def main():
     st.sidebar.title("Navegação")
     pagina = st.sidebar.radio("Escolha a página:", ["Filtrando Horas Extras", "Juntar Arquivos CSV", "Baixar Arquivos do Outlook"])
@@ -118,7 +119,7 @@ def main():
         st.title("Juntar Arquivos CSV")
 
         uploaded_files = st.file_uploader("Escolha os arquivos CSV para combinar", type=["csv"], accept_multiple_files=True)
-        nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv')
+        nome_arquivo = st.text_input('Nome do arquivo CSV combinado (ex: combinado.csv)', 'combinado.csv', sep=",")
 
         if st.button("Combinar Arquivos") and uploaded_files:
             csv_combined = combinar_csv(uploaded_files, nome_arquivo)
@@ -137,11 +138,14 @@ def main():
 
         if st.button("Baixar Anexos CSV"):
             if pasta_destino:
-                csv_files = baixar_anexos_csv_outlook(pasta_destino)
-                if csv_files:
-                    st.success(f"Anexos CSV baixados para: {pasta_destino}")
-                else:
-                    st.warning("Nenhum anexo CSV encontrado.")
+                try:
+                    csv_files = baixar_anexos_csv_outlook(pasta_destino)
+                    if csv_files:
+                        st.success(f"Anexos CSV baixados para: {pasta_destino}")
+                    else:
+                        st.warning("Nenhum anexo CSV encontrado.")
+                except Exception as e:
+                    st.error(f"Erro ao baixar anexos: {e}")
             else:
                 st.error("Por favor, insira um caminho válido para a pasta de destino.")
 
