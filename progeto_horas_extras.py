@@ -1,9 +1,3 @@
-try:
-    from exchangelib import Credentials, Account, DELEGATE
-    print("exchangelib importado com sucesso!")
-except ImportError as e:
-    print(f"Erro ao importar exchangelib: {e}")
-
 import os
 import pandas as pd
 import streamlit as st
@@ -99,17 +93,29 @@ def combinar_csv(uploaded_files, nome_arquivo):
 # Função para baixar anexos CSV do Outlook (Somente para Windows)
 def baixar_anexos_csv_outlook(pasta_destino):
     if platform.system() == "Windows":
-        import win32com.client
-        outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-        inbox = outlook.GetDefaultFolder(6)
-        messages = inbox.Items
-        csv_files = []
-        for message in messages:
-            # Implementação fictícia para fins de exemplo
-            pass
-        return csv_files
+        try:
+            import win32com.client
+            outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+            inbox = outlook.GetDefaultFolder(6)  # A pasta 6 é a Caixa de Entrada
+            messages = inbox.Items
+            csv_files = []
+            
+            for message in messages:
+                attachments = message.Attachments
+                for attachment in attachments:
+                    if attachment.FileName.endswith('.csv'):
+                        # Salva o anexo na pasta de destino
+                        attachment.SaveAsFile(os.path.join(pasta_destino, attachment.FileName))
+                        csv_files.append(attachment.FileName)
+
+            return csv_files
+
+        except Exception as e:
+            st.error(f"Erro ao acessar o Outlook: {e}")
+            return []
     else:
         st.error("Este recurso está disponível apenas para Windows.")
+        return []
 
 # Função principal
 def main():
